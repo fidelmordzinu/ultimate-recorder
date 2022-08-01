@@ -1,2 +1,1 @@
-# ultimate-recorder
-React native based voice recorder
+Ultimate Recorder is a react native based voice recorder
