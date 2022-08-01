@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "@rneui/themed";
 import { Audio, AVPlaybackStatus } from "expo-av";
 
-const HomeScreen = () => {
+const HomeScreen = ({ navigation }) => {
   const [recording, setRecording] = React.useState();
   const [pausing, setPausing] = React.useState(true);
 
@@ -45,14 +45,13 @@ const HomeScreen = () => {
   }
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <View className="flex-1 justify-center items-center bg-white ">
-        <View className="flex-2 p-5 items-end justify-end w-full flex-row space-x-2">
-          <Icon name="access-time" type="material" color="white" size={30} />
-          <Icon name="more-vert" type="material" color="white" size={30} />
+      <View className="flex-1 bg-white ">
+        <View className="flex-2 p-5 justify-end w-full flex-row space-x-2">
+          <Icon name="more-vert" type="material" color="black" size={30} />
         </View>
         <View className="flex-1 ">
           <View className="flex-1 justify-center items-center">
-            <Text className=" text-6xl text-gray-300">00:00:00</Text>
+            <Text className=" text-6xl text-gray-400">00:00:00</Text>
           </View>
           <View className="flex-1 justify-center items-center">
             <Pressable
@@ -113,15 +112,17 @@ const HomeScreen = () => {
         </View>
         {recording ? null : (
           <View className="flex-2 p-5 justify-end flex-row w-full ">
-            <View className="flex-row space-x-2">
-              <Icon
-                name="library-music"
-                type="material"
-                color="black"
-                size={25}
-              />
-              <Text className="text-black text-lg">Recording</Text>
-            </View>
+            <Pressable onPress={() => navigation.navigate("Recordings")}>
+              <View className="flex-row space-x-2">
+                <Icon
+                  name="library-music"
+                  type="material"
+                  color="black"
+                  size={25}
+                />
+                <Text className="text-black text-lg">Recording</Text>
+              </View>
+            </Pressable>
           </View>
         )}
       </View>
