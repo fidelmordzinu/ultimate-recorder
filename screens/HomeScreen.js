@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "@rneui/themed";
 import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system";
+import { StorageAccessFramework } from "expo-file-system";
 
 const HomeScreen = ({ navigation }) => {
   // Refs for the audio
@@ -28,7 +30,11 @@ const HomeScreen = ({ navigation }) => {
       allowsRecordingIOS: true,
       playsInSilentModeIOS: true,
     });
-    SetAudioPermission(getAudioPerm.granted);
+
+    if (getAudioPerm.granted) {
+      console.log("Permision granted");
+      SetAudioPermission(getAudioPerm.granted);
+    }
   };
 
   async function startRecording() {
@@ -66,6 +72,39 @@ const HomeScreen = ({ navigation }) => {
     );
   }
 
+  async function saveFile(uri) {
+    const folder_path = FileSystem.documentDirectory + "UltimateRecorder/";
+    const folder_info = await FileSystem.getInfoAsync(folder_path);
+    const createFolder = async () => {
+      if (!folder_info.exists) {
+        try {
+          await FileSystem.makeDirectoryAsync(folder_path, {
+            intermediates: true,
+          });
+        } catch (error) {}
+      }
+    };
+
+    // Requests permissions for external directory
+    const permissions =
+      await StorageAccessFramework.requestDirectoryPermissionsAsync();
+
+    if (permissions.granted) {
+      createFolder();
+      const fileName = uri.split("/")[uri.split("/").length - 1];
+      const setTheFile = folder_path + fileName + "/";
+
+      await FileSystem.moveAsync({
+        from: uri,
+        to: folder_path,
+      }).then((i) => {
+        setImage(setTheFile);
+        handlePickedImage(setTheFile);
+      });
+      console.log(uri.split("/")[uri.split("/").length - 1]);
+    }
+  }
+
   async function stopRecording() {
     try {
       console.log("Stopping recording..");
@@ -75,7 +114,8 @@ const HomeScreen = ({ navigation }) => {
       // Get the recorded URI here
       const result = AudioRecorder.current.getURI();
       if (result) SetRecordedURI(result);
-
+      saveFile(result);
+      console.log("Stopped recording..");
       // Reset the Audio Recorder
       AudioRecorder.current = new Audio.Recording();
       SetIsRecording(false);
@@ -91,7 +131,9 @@ const HomeScreen = ({ navigation }) => {
       // Reset the Audio Recorder
       AudioRecorder.current = new Audio.Recording();
       SetIsRecording(false);
-    } catch (error) {}
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   // Function to play the recorded audio
