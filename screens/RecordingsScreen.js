@@ -1,48 +1,10 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import React from "react";
+import React, { useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "@rneui/themed";
 import { Audio, AVPlaybackStatus } from "expo-av";
 
 const HomeScreen = ({ navigation }) => {
-  const [recording, setRecording] = React.useState();
-  const [pausing, setPausing] = React.useState(true);
-
-  async function startRecording() {
-    try {
-      console.log("Requesting permissions..");
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      console.log("Starting recording..");
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
-      );
-      setRecording(recording);
-      setPausing(false);
-      console.log("Recording started");
-    } catch (err) {
-      console.error("Failed to start recording", err);
-    }
-  }
-
-  async function stopPausing() {
-    console.log("Pausing recording..");
-    await recording.pauseAsync();
-    setPausing(true);
-    console.log("Recording paused", await recording.getStatusAsync());
-  }
-
-  async function stopRecording() {
-    console.log("Stopping recording..");
-    setRecording(undefined);
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI();
-    console.log("Recording stopped and stored at", uri);
-  }
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View className="flex-1 bg-white ">

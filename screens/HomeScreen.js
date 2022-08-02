@@ -1,48 +1,142 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "@rneui/themed";
-import { Audio, AVPlaybackStatus } from "expo-av";
+import { Audio } from "expo-av";
 
 const HomeScreen = ({ navigation }) => {
-  const [recording, setRecording] = React.useState();
-  const [pausing, setPausing] = React.useState(true);
+  // Refs for the audio
+  const AudioRecorder = useRef(new Audio.Recording());
+  const AudioPlayer = useRef(new Audio.Sound());
+
+  // States for UI
+  const [RecordedURI, SetRecordedURI] = useState("");
+  const [AudioPermission, SetAudioPermission] = useState(false);
+  const [IsRecording, SetIsRecording] = useState(false);
+  const [IsPausing, SetIsPausing] = useState(false);
+  const [IsPLaying, SetIsPLaying] = useState(false);
+
+  // Initial Load to get the audio permission
+  useEffect(() => {
+    GetPermission();
+  }, []);
+
+  // Function to get the audio permission
+  const GetPermission = async () => {
+    const getAudioPerm = await Audio.requestPermissionsAsync();
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+    });
+    SetAudioPermission(getAudioPerm.granted);
+  };
 
   async function startRecording() {
     try {
-      console.log("Requesting permissions..");
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      console.log("Starting recording..");
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
-      );
-      setRecording(recording);
-      setPausing(false);
-      console.log("Recording started");
+      if (!IsRecording) {
+        if (AudioPermission === true) {
+          try {
+            // Prepare the Audio Recorder
+            await AudioRecorder.current.prepareToRecordAsync(
+              Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
+            );
+            // Start recording
+            await AudioRecorder.current.startAsync();
+            SetIsRecording(true);
+          } catch (error) {
+            console.log(error);
+          }
+        } else {
+          // If user has not given the permission to record, then ask for permission
+          GetPermission();
+        }
+      }
     } catch (err) {
       console.error("Failed to start recording", err);
     }
   }
 
-  async function stopPausing() {
+  async function pausingRecording() {
     console.log("Pausing recording..");
-    await recording.pauseAsync();
-    setPausing(true);
-    console.log("Recording paused", await recording.getStatusAsync());
+    await AudioRecorder.current.pauseAsync();
+    SetIsPausing(true);
+    console.log(
+      "Recording paused",
+      await AudioRecorder.current.getStatusAsync()
+    );
   }
 
   async function stopRecording() {
-    console.log("Stopping recording..");
-    setRecording(undefined);
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI();
-    console.log("Recording stopped and stored at", uri);
+    try {
+      console.log("Stopping recording..");
+      // Stop recording
+      await AudioRecorder.current.stopAndUnloadAsync();
+
+      // Get the recorded URI here
+      const result = AudioRecorder.current.getURI();
+      if (result) SetRecordedURI(result);
+
+      // Reset the Audio Recorder
+      AudioRecorder.current = new Audio.Recording();
+      SetIsRecording(false);
+    } catch (error) {}
   }
+
+  async function cancelRecording() {
+    try {
+      console.log("Cancel recording..");
+      // Stop recording
+      await AudioRecorder.current.stopAndUnloadAsync();
+      SetRecordedURI("");
+      // Reset the Audio Recorder
+      AudioRecorder.current = new Audio.Recording();
+      SetIsRecording(false);
+    } catch (error) {}
+  }
+
+  // Function to play the recorded audio
+  const PlayRecordedAudio = async () => {
+    try {
+      // Load the Recorded URI
+      await AudioPlayer.current.loadAsync({ uri: RecordedURI }, {}, true);
+
+      // Get Player Status
+      const playerStatus = await AudioPlayer.current.getStatusAsync();
+
+      // Play if song is loaded successfully
+      if (playerStatus.isLoaded) {
+        if (playerStatus.isPlaying === false) {
+          AudioPlayer.current.playAsync();
+          SetIsPLaying(true);
+        }
+      }
+    } catch (error) {}
+  };
+
+  const PauseAudio = async () => {
+    try {
+      const playerStatus = await AudioPlayer.current.getStatusAsync();
+      if (playerStatus.isLoaded) {
+        if (playerStatus.isPlaying === true) {
+          AudioPlayer.current.pauseAsync();
+        }
+      }
+    } catch (error) {}
+  };
+
+  // Function to stop the playing audio
+  const StopPlaying = async () => {
+    try {
+      //Get Player Status
+      const playerStatus = await AudioPlayer.current.getStatusAsync();
+
+      // If song is playing then stop it
+      if (playerStatus.isLoaded === true)
+        await AudioPlayer.current.unloadAsync();
+
+      SetIsPLaying(false);
+    } catch (error) {}
+  };
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View className="flex-1 bg-white ">
@@ -51,11 +145,12 @@ const HomeScreen = ({ navigation }) => {
         </View>
         <View className="flex-1 ">
           <View className="flex-1 justify-center items-center">
+            <Text>{RecordedURI}</Text>
             <Text className=" text-6xl text-gray-400">00:00:00</Text>
           </View>
           <View className="flex-1 justify-center items-center">
             <Pressable
-              onPress={recording ? stopPausing : startRecording}
+              onPress={IsRecording ? pausingRecording : startRecording}
               style={({ pressed }) => [
                 {
                   backgroundColor: pressed ? "red" : "#133132d1",
@@ -65,53 +160,36 @@ const HomeScreen = ({ navigation }) => {
             >
               <View className="bg-red-600 flex-1 w-full h-full rounded-full justify-center items-center">
                 <Icon
-                  name={!pausing ? "pause" : "microphone"}
+                  name={IsRecording ? "pause" : "microphone"}
                   type="font-awesome"
                   color="white"
                   size={35}
                 />
               </View>
             </Pressable>
-            {recording ? (
-              <View className="flex-row justify-around w-full">
-                <Pressable
-                  onPress={stopRecording}
-                  style={({ pressed }) => [
-                    {
-                      backgroundColor: pressed ? "red" : "#133132d1",
-                    },
-                    styles.pressableSmall,
-                  ]}
-                >
-                  <Icon
-                    name="play"
-                    type="font-awesome"
-                    color="white"
-                    size={24}
-                  />
-                </Pressable>
-                <Pressable
-                  onPress={stopRecording}
-                  style={({ pressed }) => [
-                    {
-                      backgroundColor: pressed ? "red" : "#133132d1",
-                    },
-                    styles.pressableSmall,
-                  ]}
-                >
-                  <Icon
-                    name="square"
-                    type="font-awesome"
-                    color="white"
-                    size={24}
-                  />
-                </Pressable>
-              </View>
-            ) : null}
           </View>
         </View>
-        {recording ? null : (
-          <View className="flex-2 p-5 justify-end flex-row w-full ">
+        {IsRecording ? (
+          <View className="flex-2 flex-row w-full h-20 items-center space-x-12 px-5">
+            <Pressable
+              onPress={cancelRecording}
+              style={({ pressed }) => [{}, styles.pressableSmall2]}
+              className="flex-row space-y-1"
+            >
+              <Icon name="cross" type="entypo" color="red" size={35} />
+              <Text className=" text-base">Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={stopRecording}
+              style={({ pressed }) => [{}, styles.pressableSmall2]}
+            >
+              <View className=" bg-gray-600 rounded-full p-4">
+                <Icon name="checkmark" type="ionicon" color="green" size={25} />
+              </View>
+            </Pressable>
+          </View>
+        ) : (
+          <View className="flex-2 flex-row w-full h-20 items-center justify-end pr-6">
             <Pressable onPress={() => navigation.navigate("Recordings")}>
               <View className="flex-row space-x-2">
                 <Icon
@@ -120,7 +198,7 @@ const HomeScreen = ({ navigation }) => {
                   color="black"
                   size={25}
                 />
-                <Text className="text-black text-lg">Recording</Text>
+                <Text className="text-black text-lg">Recordings</Text>
               </View>
             </Pressable>
           </View>
@@ -144,7 +222,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 60,
-    padding: 10,
+    width: 60,
+    height: 60,
+  },
+  pressableSmall2: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
     width: 60,
     height: 60,
   },
