@@ -75,6 +75,7 @@ const HomeScreen = ({ navigation }) => {
   async function saveFile(uri) {
     const folder_path = FileSystem.documentDirectory + "UltimateRecorder/";
     const folder_info = await FileSystem.getInfoAsync(folder_path);
+
     const createFolder = async () => {
       if (!folder_info.exists) {
         try {
@@ -110,7 +111,6 @@ const HomeScreen = ({ navigation }) => {
       console.log("Stopping recording..");
       // Stop recording
       await AudioRecorder.current.stopAndUnloadAsync();
-
       // Get the recorded URI here
       const result = AudioRecorder.current.getURI();
       if (result) SetRecordedURI(result);
